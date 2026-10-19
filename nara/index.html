@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>나라장터 입찰 추천</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: 제목·갱신 → 요약 띠 → 기간 선택 → 탭(공고 목록 / 추천 공고) → 목록. */
+
+/* Layout: 상단 요약 띠 → 탭(추천 공고 / 일일 정리) → 목록. 조달 문서의 차분한 잉크색, 추천은 청록, 마감 임박은 인주색. */
+:root {
+  --bg: #f4f6f8; --surface: #ffffff; --line: #dde3e9; --fg: #16202a; --muted: #5b6875;
+  --accent: #0b6b63; --accent-soft: #e2f1ef; --danger: #b8322a; --danger-soft: #fbe9e7;
+  --warn: #9a6512; --warn-soft: #fbf1df; --chip: #eef1f4;
+  --sans: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1419; --surface: #161d25; --line: #26313c; --fg: #e5eaef; --muted: #93a0ad;
+  --accent: #46b8a8; --accent-soft: #15302d; --danger: #f0776b; --danger-soft: #3a1c1a;
+  --warn: #e0b061; --warn-soft: #332713; --chip: #1f2831; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f1419; --surface: #161d25; --line: #26313c; --fg: #e5eaef; --muted: #93a0ad;
+  --accent: #46b8a8; --accent-soft: #15302d; --danger: #f0776b; --danger-soft: #3a1c1a;
+  --warn: #e0b061; --warn-soft: #332713; --chip: #1f2831; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--sans); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; display: grid; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { color: var(--muted); font-size: 13px; }
+.banner { background: var(--warn-soft); color: var(--warn); border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+  padding: 10px 14px; border-radius: 8px; font-size: 13.5px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line);
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.stat { background: var(--surface); padding: 14px 16px; display: grid; gap: 2px; }
+.stat b { font: 500 24px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 12.5px; }
+.stat.is-hot b { color: var(--danger); }
+.stat.is-rec b { color: var(--accent); }
+
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.tab { appearance: none; border: 0; background: none; color: var(--muted); font: 600 15px var(--sans); padding: 10px 14px;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
+.tabs { overflow-x: auto; }
+.tab .n { font: 500 12px var(--mono); color: var(--muted); margin-left: 4px; }
+.star { appearance: none; border: 0; background: none; cursor: pointer; font-size: 18px; line-height: 1; color: var(--muted); padding: 2px 4px; }
+.star.on { color: #d4a017; }
+.tab[aria-selected="true"] { color: var(--fg); border-color: var(--accent); }
+.tab:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.toolbar input[type=search], .toolbar select { font: 14px var(--sans); color: var(--fg); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.toolbar input[type=search] { flex: 1 1 220px; min-width: 0; }
+.toolbar label { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; color: var(--muted); }
+.count { color: var(--muted); font-size: 13px; margin-left: auto; }
+
+.recs { display: grid; gap: 10px; }
+.rec { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+  display: grid; grid-template-columns: 52px 1fr auto; gap: 4px 14px; align-items: start; }
+.score { grid-column: 1; grid-row: 1 / span 3; font: 500 20px/1 var(--mono); color: var(--accent); background: var(--accent-soft);
+  border-radius: 8px; height: 52px; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+.score small { display: block; font: 11px var(--sans); color: var(--muted); margin-top: -10px; }
+.rec h3 { grid-column: 2; grid-row: 1; margin: 0; font-size: 16px; font-weight: 600; line-height: 1.4; min-width: 0; text-wrap: pretty; }
+.rec h3 a { color: inherit; text-decoration: none; }
+.rec h3 a:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+.rec .meta { grid-column: 2 / span 2; grid-row: 2; }
+.rec .why { grid-column: 2 / span 2; grid-row: 3; }
+.meta { color: var(--muted); font-size: 13.5px; display: flex; flex-wrap: wrap; gap: 2px 12px; min-width: 0; }
+.meta .num { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--fg); }
+.why { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+.chip.k { background: var(--accent-soft); color: var(--accent); }
+.chip.t { font-weight: 600; }
+.dday { grid-row: 1; grid-column: 3; font: 500 13px var(--mono); padding: 3px 9px; border-radius: 6px; background: var(--chip); white-space: nowrap; }
+.dday.hot { background: var(--danger-soft); color: var(--danger); }
+.dday.soon { background: var(--warn-soft); color: var(--warn); }
+
+.days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.day { appearance: none; flex: 0 0 auto; border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  border-radius: 10px; padding: 8px 12px; text-align: left; cursor: pointer; font: 13px var(--sans); display: grid; gap: 2px; }
+.day b { font: 500 14px var(--mono); }
+.day span { color: var(--muted); font-size: 12px; }
+.day[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--chip); margin-top: 4px; }
+.bar i { display: block; height: 100%; }
+.typesum { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.typesum b { color: var(--fg); font-family: var(--mono); font-weight: 500; }
+.sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+
+.tablebox { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 760px; }
+th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em; background: var(--surface); position: sticky; top: 0; }
+th button { all: unset; cursor: pointer; }
+td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+td.d { font-family: var(--mono); white-space: nowrap; }
+tr.row { cursor: pointer; }
+tr.row:hover td { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+tr.row.on td { background: var(--accent-soft); }
+tr.dim td { color: var(--muted); }
+.sc { display: inline-block; min-width: 30px; text-align: center; font: 500 12px var(--mono); padding: 2px 6px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); }
+.detail td { background: var(--bg); }
+.dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 20px; font-size: 13px; }
+.dl div { display: flex; gap: 8px; min-width: 0; }
+.dl dt { color: var(--muted); flex: 0 0 86px; }
+.dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.empty { padding: 32px; text-align: center; color: var(--muted); }
+a.out { color: var(--accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+a.out:hover { text-decoration: underline; }
+footer { color: var(--muted); font-size: 12.5px; }
+@media (max-width: 560px) {
+  .rec { grid-template-columns: 44px 1fr; }
+  .score { height: 44px; font-size: 17px; }
+  .score { grid-row: 1 / span 4; }
+  .dday { grid-column: 2; grid-row: 2; justify-self: start; }
+  .rec .meta { grid-column: 2; grid-row: 3; }
+  .rec .why { grid-column: 2; grid-row: 4; }
+}
+
+
+.head-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { appearance: none; font: 600 14px var(--sans); border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--fg); white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn:disabled { opacity: .55; cursor: default; }
+.btn svg { width: 16px; height: 16px; }
+.spin svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.period { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+  display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.period .lbl { font-weight: 600; font-size: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { appearance: none; border: 0; background: var(--surface); color: var(--muted); font: 600 13.5px var(--sans); padding: 7px 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.range { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.range input { font: 14px var(--mono); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+.period .hint { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--fg); color: var(--bg);
+  padding: 10px 16px; border-radius: 8px; font-size: 14px; box-shadow: 0 6px 20px rgb(0 0 0 / .2); z-index: 10; max-width: calc(100% - 32px); }
+.ms { position: relative; }
+.ms summary { list-style: none; cursor: pointer; font-size: 14px; border: 1px solid var(--line); border-radius: 8px; padding: 7px 28px 7px 10px; background: var(--bg); white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; position: relative; }
+.ms summary::-webkit-details-marker { display: none; }
+.ms summary::after { content: "▾"; position: absolute; right: 10px; color: var(--muted); }
+.ms.on summary { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.ms .menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 220px; max-height: 340px; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 6px; }
+.ms .menu label { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; font-size: 14px; cursor: pointer; white-space: nowrap; }
+.ms .menu label:hover { background: var(--accent-soft); }
+.ms .menu .cnt { margin-left: auto; padding-left: 12px; color: var(--muted); font: 12px var(--mono); }
+.ms .menu .act { display: flex; justify-content: space-between; border-top: 1px solid var(--line); margin-top: 4px; padding: 6px 4px 2px; }
+.ms .menu .act button { font: 13px var(--sans); color: var(--accent); background: none; border: 0; cursor: pointer; padding: 2px 4px; }
+.filters select, .budget input { font: 14px var(--sans); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; max-width: 100%; }
+.budget { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; color: var(--muted); }
+.budget input { width: 110px; font-family: var(--mono); }
+.filters select.on, .budget input.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.chip.pre { background: var(--accent-soft); color: var(--accent); border-color: transparent; font-weight: 600; }
+td.m { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+td.t { white-space: nowrap; font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div style="display:grid;gap:2px">
+      <h1>나라장터 입찰 추천</h1>
+      <div class="sub" id="gen">불러오는 중…</div>
+    </div>
+    <div class="head-actions">
+      <button class="btn" type="button" id="refresh" title="최신 수집 결과를 다시 불러옵니다">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>갱신</button>
+      <button class="btn primary" type="button" id="excel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>엑셀 다운로드</button>
+    </div>
+  </header>
+
+  <section class="period" aria-label="기간">
+    <span class="lbl">공고일</span>
+    <div class="seg" id="quick">
+      <button type="button" data-q="1" aria-pressed="true">갱신일</button>
+      <button type="button" data-q="7" aria-pressed="false">최근 7일</button>
+      <button type="button" data-q="30" aria-pressed="false">최근 30일</button>
+      <button type="button" data-q="all" aria-pressed="false">전체</button>
+    </div>
+    <div class="range">
+      <input type="date" id="from" aria-label="시작일"> <span>~</span> <input type="date" id="to" aria-label="종료일">
+    </div>
+    <span class="hint" id="avail"></span>
+  </section>
+
+  <section class="period filters" aria-label="필터">
+    <span class="lbl">필터</span>
+    <details class="ms" id="fKind" data-label="공고종류"><summary></summary><div class="menu"></div></details>
+    <details class="ms" id="fRec" data-label="추천 기준"><summary></summary><div class="menu"></div></details>
+    <details class="ms" id="fType" data-label="업무구분"><summary></summary><div class="menu"></div></details>
+    <details class="ms" id="fCntr" data-label="계약방법"><summary></summary><div class="menu"></div></details>
+    <details class="ms" id="fBid" data-label="입찰방식"><summary></summary><div class="menu"></div></details>
+    <label class="budget">예산 <input type="number" id="fBudget" min="0" step="1000" inputmode="numeric" placeholder="0"> 만원 이상</label>
+    <button class="btn" type="button" id="fReset">필터 초기화</button>
+  </section>
+
+  <section class="stats" id="stats" aria-label="요약"></section>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-list" data-view="all" aria-selected="true" aria-controls="p-list">공고 목록(전체)</button>
+    <button class="tab" role="tab" id="tab-rec" aria-selected="false" aria-controls="p-rec">추천 공고(전체)</button>
+    <button class="tab" role="tab" id="tab-bid" data-view="bid" aria-selected="false" aria-controls="p-list">입찰공고</button>
+    <button class="tab" role="tab" id="tab-pre" data-view="pre" aria-selected="false" aria-controls="p-list">사전규격공고</button>
+    <button class="tab" role="tab" id="tab-saved" data-view="saved" aria-selected="false" aria-controls="p-list">보관함</button>
+  </nav>
+
+  <section id="p-list" role="tabpanel" aria-labelledby="tab-list" style="display:grid;gap:12px">
+    <div class="typesum" id="typesum"></div>
+    <div class="toolbar">
+      <input type="search" id="dq" placeholder="공고명, 기관, 업종, 공고번호 검색">
+      <select id="dsort" aria-label="정렬">
+        <option value="new">최신 공고순</option><option value="score">추천 점수순</option>
+        <option value="close">마감 임박순</option><option value="budget">예산 큰 순</option>
+      </select>
+      <span class="count" id="dcount"></span>
+    </div>
+    <div class="tablebox">
+      <table>
+        <thead><tr>
+          <th title="보관">★</th><th>추천</th><th>공고일시</th><th>공고명</th><th>구분</th><th>공고기관</th>
+          <th style="text-align:right">배정예산</th><th>계약·입찰방식</th><th>입찰·의견 마감</th><th></th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="more" hidden></div>
+  </section>
+
+  <section id="p-rec" role="tabpanel" aria-labelledby="tab-rec" hidden style="display:grid;gap:12px">
+    <div class="toolbar">
+      <input type="search" id="rq" placeholder="공고명, 기관 검색">
+      <label><input type="checkbox" id="ropen" checked> 마감 전만</label>
+      <label><input type="checkbox" id="rsoon"> 7일 안에 마감</label>
+      <span class="count" id="rcount"></span>
+    </div>
+    <div class="recs" id="recs"></div>
+  </section>
+
+
+  <footer id="foot">데이터: 조달청 나라장터 공공데이터개방표준서비스 (입찰공고정보)</footer>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+const TYPE_COLOR = { "물품": "var(--accent)", "용역": "var(--warn)", "공사": "var(--danger)", "외자": "var(--muted)", "기타": "var(--muted)" };
+// 공고 데이터는 nara-data 브랜치에서 읽음 (홈페이지 이력에 데이터가 쌓이지 않도록)
+const DATA_BASE = location.hostname.endsWith("github.io")   // <계정>.github.io/<저장소>/ 에서 그 저장소의 nara-data 브랜치를 읽음
+  ? `https://raw.githubusercontent.com/${location.hostname.split(".")[0]}/${location.pathname.split("/")[1]}/nara-data/` : "data/";
+const PAGE = 300;   // 표에 한 번에 그리는 행 수
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const today = new Date(); today.setHours(0, 0, 0, 0);
+let META, CRIT, DAYDATA = {}, ROWS = [], LIST = [], RECS = [], shown = PAGE, quick = "1", bust = "";
+
+/* ---------- 점수 (nara_bids.py 의 score 와 같은 규칙) ---------- */
+const isAlpha = c => /[a-z]/.test(c), isAlnum = c => /[a-z0-9가-힣]/.test(c), isAscii = s => /^[\x00-\x7f]*$/.test(s);
+function kwHit(k, text) {
+  if (!k || !text) return false;
+  const head = k.startsWith("^"), kl = k.replace(/^\^+/, "").toLowerCase(), low = text.toLowerCase();
+  if (!kl) return false;
+  const shortA = isAscii(kl) && kl.length <= 4;
+  for (let i = low.indexOf(kl); i >= 0; i = low.indexOf(kl, i + 1)) {
+    const b = i > 0 ? low[i - 1] : "", a = low[i + kl.length] || "";
+    let ok = !(head && b && isAlnum(b));
+    if (isAscii(kl) && b && isAlpha(b)) ok = false;
+    if (shortA && a && isAlpha(a)) ok = false;
+    if (ok) return true;
+  }
+  return false;
+}
+const orgNorm = s => (s || "").replace(/\s/g, "").replace(/재단법인|\(재\)|\(주\)/g, "");
+const toInt = v => Math.trunc(+v || 0);
+function dleft(d) { if (!d) return null; const x = new Date(d + "T00:00:00"); return Math.round((x - today) / 864e5); }
+
+function score(b, c, ref) {
+  const name = b.bidNtceNm || "", inds = b.bidprcPsblIndstrytyNm || "", why = [], groups = [];
+  if ((c.exclude_keywords || []).some(x => x && name.includes(x))) return null;
+  if ((c.business_types || []).length && !c.business_types.includes(b.bsnsDivNm)) return null;
+  if ((b.bidNtceSttusNm || "").includes("취소")) return null;
+  if (ref && b.bidClseDate) {
+    const left = Math.round((new Date(b.bidClseDate + "T00:00:00") - ref) / 864e5);
+    if (left < (c.min_days_to_deadline || 0)) return null;
+  }
+  const budget = toInt(b.asignBdgtAmt) || toInt(b.presmptPrce);
+  if (c.min_budget && budget && budget < c.min_budget) return null;
+  if (c.max_budget && budget && budget > c.max_budget) return null;
+  const regions = (c.regions || []).filter(r => r && r !== "전국");
+  if (b.rgnLmtYn === "Y" && regions.length) {
+    const rg = b.prtcptPsblRgnNm || "";
+    if (rg && !rg.includes("이하생략") && !regions.some(r => rg.includes(r))) return null;
+  }
+  let s = 0;
+  for (const g of c.keyword_groups || []) {
+    const hits = (g.keywords || []).filter(k => kwHit(k, name));
+    if (hits.length) { s += 30 + 10 * Math.min(hits.length - 1, 2); groups.push(g.name);
+      why.push({ g: g.name, t: hits.slice(0, 4).map(k => k.replace(/^\^+/, "")).join(", ") }); }
+    else if ((g.keywords || []).some(k => kwHit(k, inds))) { s += 10; groups.push(g.name); why.push({ g: g.name, t: "투찰가능업종" }); }
+  }
+  const insts = orgNorm((b.ntceInsttNm || "") + "|" + (b.dmndInsttNm || ""));
+  const ag = (c.agencies || []).find(a => a && insts.includes(orgNorm(a)));
+  if (ag) { s += 20; groups.push("발주처"); why.push({ g: "발주처", t: ag }); }
+  if (!s) return null;
+  if (b.indstrytyLmtYn === "Y") why.push({ t: "업종제한 있음" });
+  if (b.rgnLmtYn === "Y") why.push({ t: "지역제한 " + (b.prtcptPsblRgnNm || "있음") });
+  return { score: s, why, groups };
+}
+
+
+/* ---------- 공통 표시 ---------- */
+function won(v) {
+  const n = +v || 0; if (!n) return "-";
+  return n >= 1e8 ? (n / 1e8).toFixed(n >= 1e9 ? 0 : 1) + "억" : Math.round(n / 1e4).toLocaleString() + "만";
+}
+function ddayHtml(b) {
+  const n = dleft(b.bidClseDate); if (n === null) return "";
+  const cls = n <= 3 ? "hot" : n <= 7 ? "soon" : "";
+  return `<span class="dday ${cls}" title="입찰마감 ${esc(b.bidClseDate)} ${esc(b.bidClseTm)}">${n < 0 ? "마감" : n === 0 ? "오늘 마감" : "D-" + n}</span>`;
+}
+const whyChips = why => (why || []).map(w => `<span class="chip ${w.g ? "k" : ""}">${w.g ? esc(w.g) + " · " : ""}${esc(w.t)}</span>`).join("");
+const match = (b, q) => !q || [b.bidNtceNm, b.ntceInsttNm, b.dmndInsttNm, b.bidprcPsblIndstrytyNm, b.bidNtceNo].join(" ").toLowerCase().includes(q);
+function fillSelect(sel, values) {
+  const keep = sel.value; sel.length = 1;
+  values.forEach(t => sel.insertAdjacentHTML("beforeend", `<option>${esc(t)}</option>`));
+  sel.value = values.includes(keep) ? keep : "";
+}
+
+
+/* ---------- 데이터 ---------- */
+const dates = () => META.days.filter(d => d.total > 0).map(d => d.date);   // 공고가 있는 날, 최신순
+let PREDATA = {};
+async function fetchPre(date) {
+  if (!PREDATA[date]) {
+    PREDATA[date] = [];
+    if ((META.pre_days || []).some(d => d.date === date && d.total > 0)) {
+      try { PREDATA[date] = (await (await fetch(`${DATA_BASE}pre/${date.replaceAll("-", "")}.json${bust}`, { cache: "no-cache" })).json()).map(b => ({ ...b, pre: 1 })); }
+      catch (e) {}
+    }
+  }
+  return PREDATA[date];
+}
+async function fetchDay(date) {
+  if (!DAYDATA[date]) {
+    try { DAYDATA[date] = await (await fetch(`${DATA_BASE}days/${date.replaceAll("-", "")}.json${bust}`, { cache: "no-cache" })).json(); }
+    catch (e) { DAYDATA[date] = []; }
+  }
+  return DAYDATA[date];
+}
+function periodDates() {
+  const f = $("#from").value, t = $("#to").value;
+  return dates().filter(d => (!f || d >= f) && (!t || d <= t));
+}
+function setQuick(q) {
+  quick = q;
+  $$("#quick button").forEach(b => b.setAttribute("aria-pressed", b.dataset.q === q));
+  const ds = dates(); if (!ds.length) return;
+  const n = q === "all" ? ds.length : Math.min(+q, ds.length);
+  // '갱신일'과 '최근 N일'은 공고가 있는 날 기준 (주말·휴일 건너뜀)
+  $("#to").value = ds[0]; $("#from").value = ds[n - 1];
+}
+async function loadPeriod() {
+  const ds = periodDates();
+  $("#tbody").innerHTML = `<tr><td colspan="10" class="empty">불러오는 중…</td></tr>`;
+  await Promise.all([...ds.map(fetchDay), ...ds.map(fetchPre)]);
+  ROWS = [];
+  const seen = new Map();
+  for (const d of ds) for (const b of [...(DAYDATA[d] || []), ...(PREDATA[d] || [])]) {
+    const r = score(b, CRIT, new Date(d + "T00:00:00"));
+    const row = { ...b, score: r ? r.score : null, why: r ? r.why : [], groups: r ? r.groups : [] };
+    ROWS.push(row);
+    if (r) {   // 추천 탭: 같은 공고의 최신 차수만, 오늘 기준으로 다시 판정
+      const now = score(b, CRIT, today), prev = seen.get(b.bidNtceNo);
+      const keep = { ...row, open: !!now, ...(now || {}) };
+      if (b.pre) keep.open = (dleft(b.bidClseDate) ?? 0) >= 0;   // 사전규격은 의견 마감 전까지
+      if (!prev || b.bidNtceOrd > prev.bidNtceOrd) seen.set(b.bidNtceNo, keep);
+    }
+  }
+  RECS = [...seen.values()].sort((a, b) => b.score - a.score || (a.bidClseDate || "9").localeCompare(b.bidClseDate || "9"));
+  fillFilters();
+  const f = $("#from").value, t = $("#to").value;
+  $("#avail").textContent = ds.length ? `${f === t ? f : f + " ~ " + t} · 공고가 있는 날 ${ds.length}일` : "선택한 기간에 수집된 공고가 없습니다";
+  shown = PAGE; renderStats(); renderTable(); renderRecs(); renderTabs();
+}
+
+/* ---------- 공통 필터 ---------- */
+// 각 필터는 여러 값을 고를 수 있다. 한 필터 안에서는 하나라도 맞으면, 필터끼리는 모두 맞아야 통과.
+const MS = ["fKind", "fRec", "fType", "fCntr", "fBid"];
+const kindOf = b => b.pre ? "사전규격" : "입찰공고";
+const SEL = Object.fromEntries(MS.map(k => [k, new Set()]));
+const MSKEY = { fType: "bsnsDivNm", fCntr: "cntrctCnclsMthdNm", fBid: "bidwinrDcsnMthdNm" };
+const counts = (key, bidsOnly) => { const c = {}; ROWS.forEach(b => { if (bidsOnly && b.pre) return; const v = b[key] || "기타"; c[v] = (c[v] || 0) + 1; }); return c; };
+function msOptions(k) {
+  if (k === "fRec") {
+    const g = [...(CRIT.keyword_groups || []).map(g => g.name), ...((CRIT.agencies || []).length ? ["발주처"] : [])];
+    const n = v => ROWS.filter(b => v === "rec" ? b.score != null : (b.groups || []).includes(v)).length;
+    return [["rec", "추천 공고 전체", n("rec")], ...g.map(x => [x, "추천 그룹: " + x, n(x)])];
+  }
+  if (k === "fKind") {
+    const c = { 입찰공고: 0, 사전규격: 0 }; ROWS.forEach(b => c[kindOf(b)]++);
+    return Object.keys(c).map(v => [v, v, c[v]]);
+  }
+  const c = counts(MSKEY[k], k === "fCntr" || k === "fBid");
+  for (const v of SEL[k]) if (!(v in c)) c[v] = 0;   // 고른 값은 이 기간에 없어도 남겨 둠
+  return Object.keys(c).sort((a, b) => c[b] - c[a]).map(v => [v, v, c[v]]);
+}
+function msSummary(k) {
+  const el = $("#" + k), sel = [...SEL[k]], lab = el.dataset.label;
+  const name = v => k === "fRec" && v === "rec" ? "추천 공고" : v;
+  el.querySelector("summary").textContent = !sel.length ? `${lab}: 전체`
+    : sel.length <= 2 ? `${lab}: ${sel.map(name).join(", ")}` : `${lab}: ${name(sel[0])} 외 ${sel.length - 1}`;
+  el.classList.toggle("on", sel.length > 0);
+}
+function fillFilters() {
+  for (const k of MS) {
+    $("#" + k + " .menu").innerHTML = msOptions(k).map(([v, t, n]) =>
+      `<label><input type="checkbox" value="${esc(v)}" ${SEL[k].has(v) ? "checked" : ""}> ${esc(t)}<span class="cnt">${n.toLocaleString()}</span></label>`).join("")
+      + `<div class="act"><button type="button" data-a="all">모두 선택</button><button type="button" data-a="none">선택 해제</button></div>`;
+  }
+  markFilters();
+}
+function markFilters() {
+  MS.forEach(msSummary);
+  $("#fBudget").classList.toggle("on", +$("#fBudget").value > 0);
+}
+function passes(b) {
+  const r = SEL.fRec, min = (+$("#fBudget").value || 0) * 1e4;
+  if (r.size && !((r.has("rec") && b.score != null) || (b.groups || []).some(g => r.has(g)))) return false;
+  if (SEL.fKind.size && !SEL.fKind.has(kindOf(b))) return false;
+  for (const k in MSKEY) if (SEL[k].size && !SEL[k].has(b[MSKEY[k]] || "기타")) return false;   // 사전규격은 계약·입찰방식이 없어 해당 필터를 쓰면 빠짐
+  if (min && (toInt(b.asignBdgtAmt) || toInt(b.presmptPrce)) < min) return false;
+  return true;
+}
+function saveFilters() {
+  try { localStorage.setItem("naraFilters2", JSON.stringify({ ...Object.fromEntries(MS.map(k => [k, [...SEL[k]]])), fBudget: $("#fBudget").value })); } catch (e) {}
+}
+function loadFilters() {
+  let f = {}; try { f = JSON.parse(localStorage.getItem("naraFilters2") || "{}"); } catch (e) {}
+  MS.forEach(k => { if (Array.isArray(f[k])) SEL[k] = new Set(f[k]); });
+  if (f.fBudget) $("#fBudget").value = f.fBudget;
+}
+
+/* ---------- 요약 ---------- */
+function renderStats() {
+  const recBid = ROWS.filter(b => !b.pre && b.score != null).length, recPre = ROWS.filter(b => b.pre && b.score != null).length;
+  const hot = RECS.filter(b => b.open && dleft(b.bidClseDate) <= 3).length;
+  $("#stats").innerHTML = [
+    [ROWS.length.toLocaleString(), "기간 내 공고", ""],
+    [recBid.toLocaleString(), "추천 기준 통과 (입찰)", "rec"],
+    [recPre.toLocaleString(), "추천 기준 통과 (사전규격)", "rec"],
+    [hot, "3일 안에 마감되는 추천", "hot"],
+    [Object.keys(SAVED).length.toLocaleString(), "보관 중 (내가 보관한 공고)", ""],
+  ].map(([v, l, c]) => `<div class="stat ${c && "is-" + c}"><b>${v}</b><span>${l}</span></div>`).join("");
+  const by = {}; ROWS.forEach(b => { const k = b.bsnsDivNm || "기타"; by[k] = (by[k] || 0) + 1; });
+  $("#typesum").innerHTML = Object.entries(by).sort((a, b) => b[1] - a[1]).map(([k, v]) =>
+    `<span><i class="sw" style="background:${TYPE_COLOR[k] || "var(--muted)"}"></i>${esc(k)} <b>${v.toLocaleString()}</b></span>`).join("");
+}
+
+/* ---------- 보관함 (이 브라우저에 저장) ---------- */
+const keyOf = b => (b.pre ? "P:" : "B:") + b.bidNtceNo + "-" + b.bidNtceOrd;
+let SAVED = {};
+try { SAVED = JSON.parse(localStorage.getItem("naraSaved") || "{}"); } catch (e) {}
+const isSaved = b => !!SAVED[keyOf(b)];
+function toggleSave(b) {
+  const k = keyOf(b);
+  if (SAVED[k]) delete SAVED[k];
+  else { const { why, groups, score, open, ...rest } = b; SAVED[k] = { ...rest, savedAt: new Date().toISOString() }; }
+  try { localStorage.setItem("naraSaved", JSON.stringify(SAVED)); } catch (e) { toast("이 브라우저에서는 보관을 저장할 수 없습니다."); }
+  renderStats(); renderTabs();
+}
+const starBtn = b => `<button class="star ${isSaved(b) ? "on" : ""}" type="button" data-k="${esc(keyOf(b))}" title="${isSaved(b) ? "보관 해제" : "보관"}" aria-label="보관">${isSaved(b) ? "★" : "☆"}</button>`;
+function savedRows() {   // 보관한 공고는 기간과 상관없이 보여 주고, 점수는 지금 기준으로 다시 매김
+  return Object.values(SAVED).map(b => { const r = score(b, CRIT, new Date(b.bidNtceDate + "T00:00:00")); return { ...b, score: r ? r.score : null, why: r ? r.why : [], groups: r ? r.groups : [] }; });
+}
+let VIEW = "all";
+const viewRows = () => VIEW === "saved" ? savedRows() : VIEW === "bid" ? ROWS.filter(b => !b.pre) : VIEW === "pre" ? ROWS.filter(b => b.pre) : ROWS;
+function renderTabs() {
+  const n = { list: ROWS.length, rec: RECS.length, bid: ROWS.filter(b => !b.pre).length, pre: ROWS.filter(b => b.pre).length, saved: Object.keys(SAVED).length };
+  for (const [id, v] of Object.entries(n)) {
+    const t = $("#tab-" + id); t.querySelector(".n")?.remove(); t.insertAdjacentHTML("beforeend", `<span class="n">${v.toLocaleString()}</span>`);
+  }
+}
+function onStar(e) {
+  const btn = e.target.closest(".star"); if (!btn) return false;
+  const k = btn.dataset.k, b = [...ROWS, ...RECS].find(x => keyOf(x) === k) || SAVED[k];
+  if (b) { toggleSave(b); if (VIEW === "saved") renderTable(); else { btn.classList.toggle("on", isSaved(b)); btn.textContent = isSaved(b) ? "★" : "☆"; } }
+  return true;
+}
+
+/* ---------- 공고 목록 ---------- */
+const stamp = b => (b.bidNtceDate || "") + " " + (b.bidNtceBgn || "");
+const SORTS = {
+  new: (a, b) => stamp(b).localeCompare(stamp(a)),
+  score: (a, b) => (b.score ?? -1) - (a.score ?? -1) || stamp(b).localeCompare(stamp(a)),
+  close: (a, b) => (a.bidClseDate + a.bidClseTm || "9").localeCompare(b.bidClseDate + b.bidClseTm || "9"),
+  budget: (a, b) => (+b.asignBdgtAmt || 0) - (+a.asignBdgtAmt || 0),
+};
+function renderTable() {
+  const q = $("#dq").value.trim().toLowerCase();
+  const base = viewRows();
+  LIST = base.filter(b => match(b, q) && passes(b));
+  LIST.sort(SORTS[$("#dsort").value]);
+  $("#dcount").textContent = `${LIST.length.toLocaleString()} / ${base.length.toLocaleString()}건`;
+  $("#tbody").innerHTML = LIST.length ? LIST.slice(0, shown).map((b, i) => `
+    <tr class="row ${b.score == null ? "dim" : ""}" data-i="${i}">
+      <td>${starBtn(b)}</td>
+      <td>${b.score != null ? `<span class="sc">${b.score}</span>` : ""}</td>
+      <td class="t">${esc((b.bidNtceDate || "").slice(5))} ${esc(b.bidNtceBgn)}</td>
+      <td>${esc(b.bidNtceNm)}${b.bidNtceSttusNm && b.bidNtceSttusNm !== "일반공고" ? ` <span class="chip">${esc(b.bidNtceSttusNm)}</span>` : ""}</td>
+      <td style="white-space:nowrap">${b.pre ? `<span class="chip pre">사전규격</span><br>` : ""}${esc(b.bsnsDivNm)}</td>
+      <td>${esc(b.ntceInsttNm)}</td>
+      <td class="n">${won(b.asignBdgtAmt)}</td>
+      <td class="m">${b.pre ? "의견 등록 마감" : `${esc(b.cntrctCnclsMthdNm)}<br>${esc(b.bidwinrDcsnMthdNm)}`}</td>
+      <td class="d">${esc((b.bidClseDate || "").slice(5))} ${esc(b.bidClseTm)}</td>
+      <td>${b.pre ? (b.bidNtceUrl ? `<a class="out" href="${esc(b.bidNtceUrl)}" target="_blank" rel="noopener" title="규격서 첫 파일 내려받기">규격서 ↓</a>` : "")
+        : `<a class="out" href="${esc(b.bidNtceUrl)}" target="_blank" rel="noopener">공고 ↗</a>`}</td>
+    </tr>`).join("") : `<tr><td colspan="10" class="empty">${VIEW === "saved" && !Object.keys(SAVED).length ? "보관한 공고가 없습니다. 목록에서 ☆를 눌러 보관하세요." : "조건에 맞는 공고가 없습니다."}</td></tr>`;
+  const rest = LIST.length - shown;
+  $("#more").hidden = rest <= 0;
+  $("#more").innerHTML = rest > 0 ? `${shown.toLocaleString()}건까지 표시했습니다. <button class="btn" type="button" id="moreBtn">${Math.min(rest, PAGE)}건 더 보기</button> 전체는 엑셀로 받을 수 있습니다.` : "";
+}
+function onRowClick(e) {
+  if (onStar(e)) return;
+  const tr = e.target.closest("tr.row"); if (!tr || e.target.closest("a")) return;
+  const open = tr.nextElementSibling?.classList.contains("detail");
+  $$("tr.detail").forEach(x => x.remove()); $$("tr.row.on").forEach(x => x.classList.remove("on"));
+  if (open) return;
+  const b = LIST[+tr.dataset.i]; tr.classList.add("on");
+  const f = b.pre ? [["사전규격 등록번호", b.bidNtceNo], ["수요기관", b.dmndInsttNm], ["나라장터 구분", b.preKind],
+    ["의견 등록 마감", `${b.bidClseDate} ${b.bidClseTm}`], ["담당자", b.ofcl], ["연결된 입찰공고", b.bidNtceNoList || "아직 없음"],
+    ["판정", (b.why || []).map(w => (w.g ? w.g + ": " : "") + w.t).join(" / ") || "기준에 맞는 키워드 없음"]]
+  : [["공고번호", `${b.bidNtceNo}-${b.bidNtceOrd}`], ["수요기관", b.dmndInsttNm], ["계약방법", b.cntrctCnclsMthdNm],
+    ["낙찰방법", b.bidwinrDcsnMthdNm], ["추정가격", won(b.presmptPrce)], ["참가등록마감", `${b.bidPrtcptQlfctRgstClseDate} ${b.bidPrtcptQlfctRgstClseTm}`],
+    ["개찰", `${b.opengDate} ${b.opengTm}`], ["지역제한", b.rgnLmtYn === "Y" ? (b.prtcptPsblRgnNm || "있음") : "없음"],
+    ["업종제한", b.indstrytyLmtYn === "Y" ? (b.bidprcPsblIndstrytyNm || "있음") : "없음"],
+    ["판정", (b.why || []).map(w => (w.g ? w.g + ": " : "") + w.t).join(" / ") || "기준에 맞는 키워드 없음"]];
+  tr.insertAdjacentHTML("afterend", `<tr class="detail"><td colspan="10"><dl class="dl">${f.map(([k, v]) =>
+    `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join("")}</dl></td></tr>`);
+}
+
+/* ---------- 추천 공고 ---------- */
+function recList() {
+  const q = $("#rq").value.trim().toLowerCase(), openOnly = $("#ropen").checked, soon = $("#rsoon").checked;
+  return RECS.filter(b => match(b, q) && passes(b) && (!openOnly || b.open) && (!soon || (dleft(b.bidClseDate) ?? 99) <= 7));
+}
+function renderRecs() {
+  const list = recList();
+  $("#rcount").textContent = `${list.length}건`;
+  $("#recs").innerHTML = list.length ? list.slice(0, 300).map(b => `
+    <article class="rec">
+      <div class="score">${b.score}</div>
+      <h3>${starBtn(b)}${b.pre ? `<span class="chip pre">사전규격</span> ` : ""}<a href="${esc(b.bidNtceUrl)}" target="_blank" rel="noopener">${esc(b.bidNtceNm)}</a></h3>
+      ${ddayHtml(b)}
+      <div class="meta">
+        <span class="chip t" style="color:${TYPE_COLOR[b.bsnsDivNm] || "var(--muted)"}">${esc(b.bsnsDivNm)}</span>
+        <span>${esc(b.ntceInsttNm)}${b.dmndInsttNm && b.dmndInsttNm !== b.ntceInsttNm ? " → " + esc(b.dmndInsttNm) : ""}</span>
+        <span>배정예산 <span class="num">${won(b.asignBdgtAmt)}</span></span>
+        ${b.pre ? "" : `<span>${esc(b.cntrctCnclsMthdNm)} · ${esc(b.bidwinrDcsnMthdNm)}</span>`}
+        <span>${b.pre ? "의견 마감" : "마감"} <span class="num">${esc(b.bidClseDate)} ${esc(b.bidClseTm)}</span></span>
+        <span>공고 <span class="num">${esc(b.bidNtceDate)} ${esc(b.bidNtceBgn)}</span></span>
+      </div>
+      <div class="why">${whyChips(b.why)}</div>
+    </article>`).join("") : `<div class="empty">이 기간에 조건에 맞는 추천 공고가 없습니다. 기간을 넓혀 보세요.</div>`;
+}
+
+/* ---------- 엑셀 (외부 라이브러리 없이 .xlsx 직접 생성) ---------- */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u) { let c = 0xFFFFFFFF; for (let i = 0; i < u.length; i++) c = CRC[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zip(files) {   // 압축 없는(store) zip
+  const enc = new TextEncoder(), parts = [], dir = []; let off = 0;
+  for (const [name, text] of files) {
+    const n = enc.encode(name), d = enc.encode(text), c = crc32(d);
+    const h = new DataView(new ArrayBuffer(30));
+    [[0, 0x04034b50, 4], [4, 20, 2], [6, 0x0800, 2], [14, c, 4], [18, d.length, 4], [22, d.length, 4], [26, n.length, 2]]
+      .forEach(([o, v, l]) => l === 4 ? h.setUint32(o, v, true) : h.setUint16(o, v, true));
+    parts.push(h.buffer, n, d);
+    const e = new DataView(new ArrayBuffer(46));
+    [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [8, 0x0800, 2], [16, c, 4], [20, d.length, 4], [24, d.length, 4], [28, n.length, 2], [42, off, 4]]
+      .forEach(([o, v, l]) => l === 4 ? e.setUint32(o, v, true) : e.setUint16(o, v, true));
+    dir.push(e.buffer, n);
+    off += 30 + n.length + d.length;
+  }
+  const size = dir.reduce((s, x) => s + (x.byteLength ?? x.length), 0), end = new DataView(new ArrayBuffer(22));
+  [[0, 0x06054b50, 4], [8, files.length, 2], [10, files.length, 2], [12, size, 4], [16, off, 4]]
+    .forEach(([o, v, l]) => l === 4 ? end.setUint32(o, v, true) : end.setUint16(o, v, true));
+  return new Blob([...parts, ...dir, end.buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+const xe = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "");
+const colName = i => { let s = ""; for (i++; i; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s; return s; };
+const XCOLS = [
+  ["추천점수", 8, b => b.score ?? "", 1], ["공고종류", 9, b => b.pre ? "사전규격" : "입찰공고"], ["공고일", 11, b => b.bidNtceDate], ["공고시각", 8, b => b.bidNtceBgn], ["공고명", 60, b => b.bidNtceNm],
+  ["공고상태", 10, b => b.bidNtceSttusNm], ["업무구분", 8, b => b.bsnsDivNm], ["공고기관", 26, b => b.ntceInsttNm], ["수요기관", 26, b => b.dmndInsttNm],
+  ["배정예산(원)", 14, b => toInt(b.asignBdgtAmt) || "", 2], ["추정가격(원)", 14, b => toInt(b.presmptPrce) || "", 2],
+  ["참가등록마감", 17, b => `${b.bidPrtcptQlfctRgstClseDate || ""} ${b.bidPrtcptQlfctRgstClseTm || ""}`.trim()],
+  ["입찰마감", 17, b => `${b.bidClseDate || ""} ${b.bidClseTm || ""}`.trim()], ["개찰", 17, b => `${b.opengDate || ""} ${b.opengTm || ""}`.trim()],
+  ["계약방법", 14, b => b.cntrctCnclsMthdNm], ["낙찰방법", 18, b => b.bidwinrDcsnMthdNm],
+  ["지역제한", 18, b => b.rgnLmtYn === "Y" ? (b.prtcptPsblRgnNm || "있음") : ""], ["업종제한", 30, b => b.indstrytyLmtYn === "Y" ? (b.bidprcPsblIndstrytyNm || "있음") : ""],
+  ["추천 사유", 40, b => (b.why || []).map(w => (w.g ? w.g + ": " : "") + w.t).join(" / ")],
+  ["공고번호", 18, b => `${b.bidNtceNo}-${b.bidNtceOrd}`], ["공고 보기", 10, b => b.bidNtceUrl ? "공고 보기" : ""],
+];
+function sheetXml(rows) {
+  const last = colName(XCOLS.length - 1), cell = (r, c, v, num, st) => {
+    const ref = colName(c) + r;
+    if (v === "" || v == null) return st ? `<c r="${ref}" s="${st}"/>` : "";
+    return num && typeof v === "number" ? `<c r="${ref}" s="${num === 2 ? 2 : 0}"><v>${v}</v></c>` : `<c r="${ref}" t="inlineStr"${st ? ` s="${st}"` : ""}><is><t xml:space="preserve">${xe(v)}</t></is></c>`;
+  };
+  const head = `<row r="1">${XCOLS.map(([h], c) => cell(1, c, h, 0, 1)).join("")}</row>`;
+  const body = rows.map((b, i) => `<row r="${i + 2}">${XCOLS.map(([, , f, num], c) => cell(i + 2, c, f(b), num, c === XCOLS.length - 1 && b.bidNtceUrl ? 3 : 0)).join("")}</row>`).join("");
+  const links = rows.map((b, i) => b.bidNtceUrl ? `<hyperlink ref="${last}${i + 2}" r:id="h${i}"/>` : "").join("");
+  const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">`
+    + `<sheetViews><sheetView workbookViewId="0"><pane xSplit="0" ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`
+    + `<cols>${XCOLS.map(([, w], c) => `<col min="${c + 1}" max="${c + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>`
+    + `<sheetData>${head}${body}</sheetData><autoFilter ref="A1:${last}${rows.length + 1}"/>${links ? `<hyperlinks>${links}</hyperlinks>` : ""}</worksheet>`;
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`
+    + rows.map((b, i) => b.bidNtceUrl ? `<Relationship Id="h${i}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${xe(b.bidNtceUrl)}" TargetMode="External"/>` : "").join("") + `</Relationships>`;
+  return [xml, rels];
+}
+function makeXlsx(sheets) {
+  const R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships", P = "http://schemas.openxmlformats.org/package/2006/relationships";
+  const files = [
+    ["[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`],
+    ["_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${P}"><Relationship Id="r1" Type="${R}/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    ["xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="${R}"><sheets>${sheets.map((s, i) => `<sheet name="${xe(s.name)}" sheetId="${i + 1}" r:id="s${i + 1}"/>`).join("")}</sheets>${sheets.map((s, i) => `<definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">'${xe(s.name)}'!$A$1:$${colName(XCOLS.length - 1)}$${s.rows.length + 1}</definedName></definedNames>`).slice(0, 1).join("")}</workbook>`],
+    ["xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="${P}">${sheets.map((_, i) => `<Relationship Id="s${i + 1}" Type="${R}/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}<Relationship Id="st" Type="${R}/styles" Target="styles.xml"/></Relationships>`],
+    ["xl/styles.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0"/></numFmts><fonts count="3"><font><sz val="10"/><name val="맑은 고딕"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="맑은 고딕"/></font><font><u/><sz val="10"/><color rgb="FF0563C1"/><name val="맑은 고딕"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B6B63"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`],
+  ];
+  sheets.forEach((s, i) => { const [x, r] = sheetXml(s.rows); files.push([`xl/worksheets/sheet${i + 1}.xml`, x], [`xl/worksheets/_rels/sheet${i + 1}.xml.rels`, r]); });
+  return zip(files);
+}
+function downloadExcel() {
+  const recTab = !$("#p-rec").hidden;
+  const sheets = recTab ? [{ name: "추천 공고", rows: recList() }]
+    : [{ name: "공고 목록", rows: LIST }, { name: "추천만", rows: LIST.filter(b => b.score != null).sort(SORTS.score) }];
+  const f = $("#from").value.replaceAll("-", ""), t = $("#to").value.replaceAll("-", "");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(makeXlsx(sheets));
+  a.download = `NARA_${recTab ? "recommended" : "bids"}_${f === t ? f : f + "-" + t}.xlsx`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast(`${sheets[0].rows.length.toLocaleString()}건을 엑셀로 받았습니다. 지금 보이는 검색·필터 조건이 그대로 적용됩니다.`);
+}
+
+/* ---------- 갱신 ---------- */
+let tt; function toast(t) { const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(tt); tt = setTimeout(() => el.hidden = true, 4000); }
+async function loadMeta() {
+  META = await (await fetch(DATA_BASE + "index.json" + bust, { cache: "no-cache" })).json();
+  CRIT = META.criteria || {};
+  $("#gen").textContent = `마지막 수집 ${META.generated.replace("T", " ")} · 새 공고는 15분마다 자동 수집`;
+  const ds = dates();
+  ["#from", "#to"].forEach(s => { $(s).min = ds[ds.length - 1] || ""; $(s).max = ds[0] || ""; });
+  const kw = (CRIT.keyword_groups || []).map(g => g.name).join(", ");
+  $("#foot").textContent = `데이터: 조달청 나라장터 공공데이터개방표준서비스 (입찰공고정보), 사전규격정보서비스 · 추천 기준: ${kw}${(CRIT.agencies || []).length ? ", 발주처 " + CRIT.agencies.length + "곳" : ""}`;
+}
+// 갱신: 저장된 수집 결과를 다시 읽고, 실시간 조회 함수가 있으면 지금 시각까지 나라장터에서 바로 받아 합친다.
+async function liveFetch() {
+  let cfg; try { cfg = await (await fetch(DATA_BASE + "admin-config.json" + bust, { cache: "no-cache" })).json(); } catch (e) { return null; }
+  if (!cfg?.supabaseUrl || !cfg?.supabaseAnonKey) return null;
+  const url = cfg.supabaseUrl.replace(/\/$/, ""), anon = cfg.supabaseAnonKey;
+  const kst = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  const day = await fetchDay(kst);
+  const since = day.reduce((m, b) => { const t = `${b.bidNtceDate} ${b.bidNtceBgn}`; return t > m ? t : m; }, "");
+  const r = await fetch(`${url}/functions/v1/nara-live?since=${encodeURIComponent(since)}`,
+    { headers: { Authorization: "Bearer " + anon, apikey: anon }, signal: AbortSignal.timeout(90000) });
+  const res = await r.json();
+  if (!r.ok || res.error) throw new Error(res.error || r.status);
+  const have = new Set(day.map(b => b.bidNtceNo + "-" + b.bidNtceOrd));
+  const fresh = res.items.filter(b => b.bidNtceDate === res.date && !have.has(b.bidNtceNo + "-" + b.bidNtceOrd));
+  DAYDATA[res.date] = [...day, ...fresh];
+  let d = META.days.find(x => x.date === res.date);
+  if (!d) { d = { date: res.date, total: 0 }; META.days.unshift(d); META.days.sort((a, b) => b.date.localeCompare(a.date)); }
+  d.total = DAYDATA[res.date].length;
+  ["#from", "#to"].forEach(s => $(s).max = dates()[0]);
+  $("#gen").textContent = `나라장터 실시간 조회 ${res.fetched_at} · 오늘 공고 ${d.total.toLocaleString()}건`;
+  return { added: fresh.length, at: res.fetched_at };
+}
+async function refresh() {
+  const btn = $("#refresh"), before = META?.generated;
+  btn.disabled = true; btn.classList.add("spin"); toast("나라장터에서 지금까지의 공고를 받아오는 중입니다…");
+  try {
+    bust = "?t=" + Date.now(); DAYDATA = {}; PREDATA = {};
+    await loadMeta();
+    let live = null, liveErr = false;
+    try { live = await liveFetch(); } catch (e) { liveErr = true; }
+    if (quick) setQuick(quick);
+    await loadPeriod();
+    toast(live ? `${live.at} 기준으로 갱신했습니다. 새 공고 ${live.added.toLocaleString()}건.`
+      : liveErr ? "나라장터 실시간 조회에 실패해 마지막 자동 수집 결과를 보여 드립니다."
+      : META.generated !== before ? `새 수집 결과(${META.generated.replace("T", " ")})를 불러왔습니다.`
+      : "이미 최신입니다. 실시간 조회는 관리자 설정 뒤에 쓸 수 있습니다.");
+  } catch (e) { toast("불러오지 못했습니다. 잠시 뒤 다시 눌러 주세요."); }
+  finally { btn.disabled = false; btn.classList.remove("spin"); }
+}
+
+/* ---------- 시작 ---------- */
+function setTab(name) {
+  for (const id of ["list", "rec", "bid", "pre", "saved"]) $("#tab-" + id).setAttribute("aria-selected", id === name);
+  $("#p-rec").hidden = name !== "rec"; $("#p-list").hidden = name === "rec";
+  if (name !== "rec") { VIEW = $("#tab-" + name).dataset.view; shown = PAGE; $$("tr.detail").forEach(x => x.remove()); renderTable(); }
+  $("#avail").style.opacity = name === "saved" ? .4 : 1;
+}
+async function init() {
+  try { await loadMeta(); }
+  catch (e) {
+    $("#gen").textContent = "";
+    $("#stats").outerHTML = `<div class="empty">아직 수집된 데이터가 없습니다. 첫 자동 수집 뒤에 다시 열어 주세요.</div>`;
+    return;
+  }
+  setQuick("1");
+  ["#dq", "#dsort"].forEach(s => $(s).addEventListener("input", () => { shown = PAGE; renderTable(); }));
+  ["#rq", "#ropen", "#rsoon"].forEach(s => $(s).addEventListener("input", renderRecs));
+  const onFilter = () => { markFilters(); shown = PAGE; renderTable(); renderRecs(); saveFilters(); };
+  for (const k of MS) {
+    const el = $("#" + k);
+    el.addEventListener("change", e => { const v = e.target.value; e.target.checked ? SEL[k].add(v) : SEL[k].delete(v); onFilter(); });
+    el.addEventListener("click", e => {
+      const a = e.target.dataset?.a; if (!a) return;
+      el.querySelectorAll("input").forEach(i => { i.checked = a === "all"; a === "all" ? SEL[k].add(i.value) : SEL[k].delete(i.value); });
+      onFilter();
+    });
+    el.addEventListener("toggle", () => { if (el.open) MS.forEach(o => o !== k && ($("#" + o).open = false)); });
+  }
+  document.addEventListener("click", e => { if (!e.target.closest(".ms")) MS.forEach(k => $("#" + k).open = false); });
+  $("#fBudget").addEventListener("input", onFilter);
+  $("#fReset").onclick = () => { MS.forEach(k => SEL[k].clear()); $("#fBudget").value = ""; fillFilters(); onFilter(); };
+  loadFilters();
+  $("#quick").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { setQuick(b.dataset.q); loadPeriod(); } });
+  ["#from", "#to"].forEach(s => $(s).addEventListener("change", () => {
+    if ($("#from").value && $("#to").value && $("#from").value > $("#to").value) [$("#from").value, $("#to").value] = [$("#to").value, $("#from").value];
+    quick = null; $$("#quick button").forEach(b => b.setAttribute("aria-pressed", "false")); loadPeriod();
+  }));
+  $("#tbody").addEventListener("click", onRowClick);
+  $("#more").addEventListener("click", e => { if (e.target.id === "moreBtn") { shown += PAGE; renderTable(); } });
+  ["list", "rec", "bid", "pre", "saved"].forEach(n => $("#tab-" + n).onclick = () => setTab(n));
+  $("#recs").addEventListener("click", e => { if (onStar(e)) e.preventDefault(); });
+  $("#refresh").onclick = refresh;
+  $("#excel").onclick = downloadExcel;
+  await loadPeriod();
+}
+init();
+</script>
+</body>
+</html>
