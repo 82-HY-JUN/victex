@@ -13,6 +13,10 @@ on:
         description: "오늘 이미 갱신했어도 공고를 다시 수집"
         type: boolean
         default: false
+      test_mail_to:
+        description: "이 주소로 어제 엑셀을 시험 발송 (비우면 안 보냄)"
+        type: string
+        default: ""
 
 concurrency:
   group: nara
@@ -58,7 +62,9 @@ jobs:
           MAIL_TO: ${{ vars.MAIL_TO }}          # Supabase 설정 전 임시 수신자
           MAIL_TIME: ${{ vars.MAIL_TIME }}
           SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/nara/
-        run: python nara.py tick
+        run: |
+          python nara.py tick
+          if [ -n "${{ inputs.test_mail_to }}" ]; then python nara.py send-test --to "${{ inputs.test_mail_to }}"; fi
 
       - name: 공고 데이터 올리기 (nara-data 브랜치)
         if: steps.tick.outputs.changed == 'true'
