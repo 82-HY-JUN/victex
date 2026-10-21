@@ -11,7 +11,7 @@
 
 ## 동작 방식
 GitHub Actions(저장소 루트 `.github/workflows/nara.yml`)가 매시간 `nara/bot` 에서 `python nara.py tick` 을 실행합니다.
-1. 하루 한 번(그날 첫 실행) 사흘 전~어제 공고를 다시 받아 늦게 올라온 공고를 채우고, 오늘 공고는 15분마다 새 공고를 덧붙이고 2시간마다 전체를 다시 받습니다 (최근 60일 보관).
+1. 하루 한 번(그날 첫 실행) 사흘 전~어제 공고를 다시 받아 늦게 올라온 공고를 채우고, 오늘 공고는 수집할 때마다 새 공고를 덧붙이고 2시간이 지났으면 전체를 다시 받습니다 (최근 60일 보관).
    사전규격(조달청_나라장터 사전규격정보서비스)도 같은 키로 받아 `data/pre/` 에 저장합니다. 이 서비스는 공공데이터포털에서 따로 활용신청해야 합니다.
 2. Supabase에 저장된 발송 일정 중 시각이 된 것이 있으면 엑셀을 만들어 메일로 보내고, 결과를 발송 기록에 남깁니다.
    예정 시각부터 3시간 안에 실행되면 보냅니다. 하루에 한 번만 보냅니다.
@@ -32,18 +32,14 @@ GitHub Actions(저장소 루트 `.github/workflows/nara.yml`)가 매시간 `nara
 3. Actions 탭에서 `NARA 입찰공고 수집·메일 발송` 을 한 번 수동 실행(Run workflow)합니다.
 4. 관리 화면에서 **가장 먼저 가입한 사람이 관리자**가 됩니다. 이후 가입자는 관리자가 '가입자' 탭에서 승인합니다.
 
-## 갱신 버튼으로 실시간 조회 (선택)
-공개 페이지의 '갱신'을 누르면 Supabase Edge Function `nara-live` 가 마지막 수집 이후부터 지금까지의 오늘 공고를
-나라장터에서 바로 받아 화면에 합칩니다. 인증키는 함수 비밀값에만 있고 브라우저로 나가지 않습니다.
-설정하지 않으면 '갱신'은 마지막 자동 수집 결과(15분마다)를 다시 불러옵니다.
+## 수집 시각과 갱신 버튼
+GitHub 의 예약 실행은 몇 시간씩 밀리는 일이 잦아서 쓰지 않습니다. 대신 Supabase 가 정해진 시각에 워크플로를 실행시킵니다.
+기본 시각은 매일 08:30, 13:00, 17:00 이고, 관리 화면 '수집·발송 일정' 탭에서 바꿀 수 있습니다.
+메일 발송 일정의 시각에도 자동으로 수집이 돌고 그 결과로 메일이 나갑니다.
+공개 페이지의 '갱신'을 누르면 바로 수집을 시작하고(5분에 한 번까지) 끝나면 새 결과를 보여 줍니다.
 
-1. Supabase > Edge Functions > **Deploy a new function** > Via Editor 에서 이름을 `nara-live` 로 하고,
-   `nara/bot/supabase/functions/nara-live/index.ts` 내용을 붙여넣어 Deploy 합니다.
-   (CLI 를 쓰면 `nara/bot` 에서 `supabase functions deploy nara-live`)
-2. Edge Functions > **Secrets** 에 `NARA_API_KEY` 를 추가합니다 (GitHub Secrets 에 넣은 것과 같은 키).
-3. 위 2단계의 `SUPABASE_URL`, `SUPABASE_ANON_KEY` 가 들어가 있으면 다음 자동 수집 때부터 페이지가 함수를 찾습니다.
-
-같은 시간대는 3분 동안 다시 조회하지 않아 여러 사람이 연달아 눌러도 API 호출 한도를 크게 쓰지 않습니다.
+1. GitHub > Settings > Developer settings > Fine-grained tokens 에서 이 저장소만, Actions: Read and write 권한으로 토큰을 만듭니다.
+2. Supabase > SQL Editor 에 `supabase/collect.sql` 을 붙여 넣고, `github_pat_여기에_토큰` 자리에 토큰을 넣어 Run 합니다.
 
 ## Supabase 없이 메일만 먼저 받기
 관리 화면을 설정하기 전에도 저장소 Variables 에 `MAIL_TO`(쉼표로 여러 주소)와 `MAIL_TIME`(예: `00:00`, 비우면 자정)을
