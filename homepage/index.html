@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>홈페이지 리뉴얼 결과물</title>
+<style>
+	:root { --blue: #014099; --text: #333; --muted: #666; --line: #ddd; --bg: #f7f7f7; --card: #fff; }
+	@media (prefers-color-scheme: dark) {
+		:root:not([data-theme="light"]) { --text: #eee; --muted: #aaa; --line: #333; --bg: #111; --card: #1b1b1b; --blue: #4d8fff; }
+	}
+	* { box-sizing: border-box; }
+	body { margin: 0; padding: 48px 16px; background: var(--bg); color: var(--text);
+		font-family: 'Noto Sans KR', 'Malgun Gothic', system-ui, sans-serif; line-height: 1.6; }
+	main { max-width: 1080px; margin: 0 auto; }
+	a.back { display: inline-block; margin-bottom: 16px; color: var(--muted); font-size: 14px; text-decoration: none; }
+	a.back:hover { color: var(--blue); }
+	h1 { margin: 0 0 4px; font-size: 28px; letter-spacing: -0.02em; }
+	p.lead { margin: 0 0 32px; color: var(--muted); }
+	.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+	a.card { display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line);
+		border-radius: 12px; overflow: hidden; color: inherit; text-decoration: none; transition: border-color .2s, transform .2s; }
+	a.card:hover, a.card:focus-visible { border-color: var(--blue); transform: translateY(-2px); }
+	a.card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top; border-bottom: 1px solid var(--line); }
+	.body { padding: 16px 20px 20px; }
+	.body strong { display: block; font-size: 18px; color: var(--blue); }
+	.body em { display: block; font-style: normal; font-size: 14px; font-weight: 600; margin: 2px 0 8px; }
+	.body ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+	.tag { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 999px; background: var(--line);
+		color: var(--muted); font-size: 12px; font-weight: 400; vertical-align: 2px; }
+	p.note { margin: 32px 0 0; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+	<a class="back" href="../">← 업무 도구</a>
+	<h1>홈페이지 리뉴얼 결과물</h1>
+	<p class="lead">현행 홈페이지와 지금까지 만든 메인 화면 시안을 비교해 볼 수 있습니다. 카드를 누르면 실제 화면이 열립니다.</p>
+
+	<div class="grid">
+		<a class="card" href="original/index.html">
+			<img src="shots/original.jpg" alt="현행 홈페이지 첫 화면" loading="lazy">
+			<div class="body">
+				<strong>현행 사이트 <span class="tag">기준</span></strong>
+				<em>www.victex.co.kr 복제본 (2026-10-02)</em>
+				<ul>
+					<li>리뉴얼 전 원래 화면. 시안과 비교하는 기준입니다</li>
+				</ul>
+			</div>
+		</a>
+		<a class="card" href="Renewal_1/index.html">
+			<img src="shots/Renewal_1.jpg" alt="Renewal_1 첫 화면" loading="lazy">
+			<div class="body">
+				<strong>Renewal_1 · 1-1안</strong>
+				<em>2부문 사업 메인 (화이트 블루)</em>
+				<ul>
+					<li>"탄소중립과 원자력산업의 지속가능한 미래" 타이틀</li>
+					<li>CCUS · 원전해체 사업 패널 2개, 회사 지표 5개</li>
+					<li>빅텍스 소개 영상 재생 버튼</li>
+				</ul>
+			</div>
+		</a>
+		<a class="card" href="Renewal_2/index.html">
+			<img src="shots/Renewal_2.jpg" alt="Renewal_2 첫 화면" loading="lazy">
+			<div class="body">
+				<strong>Renewal_2 · 2-1안</strong>
+				<em>EPC 환경/엔지니어링 전문기업 이미지</em>
+				<ul>
+					<li>기존 구성에서 카피만 재구성, 플랜트 사진 한 장</li>
+					<li>VICTEX 로고 + "환경 에너지 산업의 미래를 여는 기술 전문기업"</li>
+					<li>사업 목록 2개가 각 사업 페이지로 연결</li>
+				</ul>
+			</div>
+		</a>
+		<a class="card" href="Renewal_3/index.html">
+			<img src="shots/Renewal_3.jpg" alt="Renewal_3 첫 화면" loading="lazy">
+			<div class="body">
+				<strong>Renewal_3 · 3-1안</strong>
+				<em>3부문 사업모음 (타일형)</em>
+				<ul>
+					<li>회사 소개 + 사옥 사진 + 지표 4개</li>
+					<li>CCUS · 원전해체 · 드라이아이스 타일 3개</li>
+				</ul>
+			</div>
+		</a>
+		<a class="card" href="Renewal_4/index.html">
+			<img src="shots/Renewal_4.jpg" alt="Renewal_4 첫 화면" loading="lazy">
+			<div class="body">
+				<strong>Renewal_4 · 4안</strong>
+				<em>1-1안 구성 + 시안 효과</em>
+				<ul>
+					<li>실크 물결 배경, 흰 유리 패널</li>
+					<li>원본 해상도 사진으로 교체, 진한 CO₂ 아이콘</li>
+				</ul>
+			</div>
+		</a>
+		<a class="card" href="Renewal_5/index.html">
+			<img src="shots/Renewal_5.jpg" alt="Renewal_5 첫 화면" loading="lazy">
+			<div class="body">
+				<strong>Renewal_5 · 5안</strong>
+				<em>3부문 사업모음 (띄운 카드형)</em>
+				<ul>
+					<li>3-1안 구성에 간격을 둔 카드와 그림자</li>
+					<li>카드별 원형 아이콘과 화살표, 사진 교체</li>
+				</ul>
+			</div>
+		</a>
+	</div>
+
+	<p class="note">시안은 메인 첫 화면(히어로)만 바뀌었고, 아래 섹션과 서브 페이지는 현행 사이트와 같습니다. 회사 홈페이지 작업 저장소 기준 2026-11-23 사본입니다.</p>
+</main>
+</body>
+</html>

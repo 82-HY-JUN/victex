@@ -1,6 +1,7 @@
 # 나라장터 입찰공고 자동조회
 
 - `index.html` 업무 도구 첫 화면 (카드 선택)
+- `homepage/` 홈페이지 리뉴얼 결과물 (회사 홈페이지 작업 저장소의 현행 복제본·시안 1~5 사본)
 - `nara/` 공개 화면, `nara/admin/` 관리 화면 (GitHub Pages)
 - `nara/bot/` 수집·메일 발송 스크립트와 Supabase 설정 (`schema.sql`, `supabase/functions/nara-live`)
 - `.github/workflows/nara.yml` 15분마다 수집해 `nara-data` 브랜치에 공고 데이터를 올림
