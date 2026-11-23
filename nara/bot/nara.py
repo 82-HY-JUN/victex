@@ -732,7 +732,8 @@ class Tracker:
                                                                 "inqryEndDt": f"{wb:%Y%m%d%H%M}", "numOfRows": 999, "pageNo": page}, total=True)
                     for c in items:
                         no = str(c.get("ntceNo") or "")
-                        if no in wanted:
+                        prev = self.cstate["hits"].get(no)
+                        if no in wanted and not (prev and (prev.get("date") or "9") <= (c.get("cntrctDate") or "9")):    # 최초 계약만
                             corp = str(c.get("corpList") or "").strip("[]").split("^")
                             self.cstate["hits"][no] = {"no": c.get("untyCntrctNo"), "date": c.get("cntrctDate") or c.get("cntrctCnclsDate"),
                                                        "req": c.get("reqNo"), "corp": corp[3] if len(corp) > 3 else "",
